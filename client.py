@@ -1,11 +1,10 @@
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
-
 from tkinter import *
-from tkinter import ttk, filedialog, messagebox
-from threading import Thread
+from tkinter import filedialog, messagebox
 from socket import socket, AF_INET, SOCK_STREAM
+from ftplib import FTP
 
 # Global Variables
 SERVER = socket(AF_INET, SOCK_STREAM)
@@ -92,6 +91,20 @@ def stopSong():
     pygame.mixer.music.stop()
     infoLabel.config(text="")
 
+def browseFiles():
+  try:
+    file = filedialog.askopenfilename()
+    filename = os.path.basename(file)
+    ftp_server = FTP("127.0.0.1", "ftp_username", "ftp_pass")
+    ftp_server.encoding = "utf-8"
+    ftp_server.cwd("shared_files")
+    with open(file, 'rb') as f:
+      ftp_server.storbinary(f"STOR {filename}", f)
+    ftp_server.quit()
+
+  except FileNotFoundError:
+    print("No file selected")
+
 def openWindow():
   global window, listBox, infoLabel, nameEntry
   global nameBtn, playBtn, pauseBtn, stopBtn, uploadBtn, dwnldBtn
@@ -119,7 +132,7 @@ def openWindow():
   stopBtn = Button(window, text="Stop", bg="white", disabledforeground="royalblue", font="Consolas 11 bold", command=stopSong, state=DISABLED)
   stopBtn.place(x=20, y=325, anchor=W)
 
-  uploadBtn = Button(window, text="Upload", bg="white", disabledforeground="royalblue", font="Consolas 11 bold", state=DISABLED)
+  uploadBtn = Button(window, text="Upload", bg="white", disabledforeground="royalblue", font="Consolas 11 bold", command=browseFiles, state=DISABLED)
   uploadBtn.place(x=320, y=285, anchor=E)
   dwnldBtn = Button(window, text="Download", bg="white", disabledforeground="royalblue", font="Consolas 11 bold", state=DISABLED)
   dwnldBtn.place(x=320, y=325, anchor=E)

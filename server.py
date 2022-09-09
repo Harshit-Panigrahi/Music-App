@@ -1,11 +1,23 @@
 from socket import socket, AF_INET, SOCK_STREAM
 from threading import Thread
 
+from pyftpdlib.authorizers import DummyAuthorizer
+from pyftpdlib.handlers import FTPHandler
+from pyftpdlib.servers import FTPServer
+
 # Global Variables
 SERVER = socket(AF_INET, SOCK_STREAM)
 IP_ADDR = "127.0.0.1"
 PORT = 8050
 clients={}
+
+def ftpServer():
+  auth = DummyAuthorizer()
+  auth.add_user("ftp_username", "ftp_pass", ".", "elradfmw")
+  handler = FTPHandler
+  handler.authorizer = auth
+  ftp_server = FTPServer((IP_ADDR, 21), handler)
+  ftp_server.serve_forever()
 
 def acceptConn():
   while True:
@@ -43,4 +55,5 @@ def setup():
   acceptConn()
 
 print("\n\t\t\t\t~~*** Music Sharing App ***~~\n")
-setup()
+thread1 = Thread(target=setup).start()
+thread2 = Thread(target=ftpServer).start()
