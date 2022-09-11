@@ -28,15 +28,9 @@ now_playing = None
 songLst = []
 songCount = 0
 
-def getSongs():
-  global songCount
-  
-  for f in os.listdir("."):
-    if f.endswith(".wav") or f.endswith(".mp3") or f.endswith("ogg"):
-      songCount += 1
-      listBox.insert(songCount, os.fsdecode(f))
-
-  print(songCount, "songs found")
+shared_files = os.path.join(os.getcwd(), "shared_files")
+if not os.path.exists(shared_files):
+  os.makedirs(shared_files)
 
 def connect():
   global name
@@ -51,21 +45,19 @@ def connect():
     pauseBtn.config(bg="royalblue", fg="white", state=NORMAL)
     stopBtn.config(bg="royalblue", fg="white", state=NORMAL)
     uploadBtn.config(bg="royalblue", fg="white", state=NORMAL)
-    dwnldBtn.config(bg="royalblue", fg="white", state=NORMAL)
-    window.protocol("WM_DELETE_WINDOW", exitApp)
     pygame.mixer.init()
 
   else:
     name = None
 
 def exitApp():
-  if messagebox.askokcancel("Quiz Game", "Do you want to exit the app?"):
+  if messagebox.askokcancel("Music App", "Do you want to exit the app?"):
     try:
-      window.destroy()
       SERVER.send("~disconnected".encode("utf-8"))
       SERVER.close()
     except:
       pass
+    window.destroy()
 
 def playSong():
   global now_playing
@@ -78,7 +70,7 @@ def playSong():
     pygame.mixer.music.load(now_playing)
     pygame.mixer.music.play()
     infoLabel.config(text=f"Now playing: {now_playing}")
-
+  
 def pauseSong():
   if now_playing:
     pygame.mixer.music.pause()
@@ -91,19 +83,46 @@ def stopSong():
     pygame.mixer.music.stop()
     infoLabel.config(text="")
 
-def browseFiles():
+def uploadFile():
+  global songCount
   try:
     file = filedialog.askopenfilename()
     filename = os.path.basename(file)
     ftp_server = FTP("127.0.0.1", "ftp_username", "ftp_pass")
     ftp_server.encoding = "utf-8"
-    ftp_server.cwd("shared_files")
+    ftp_server.cwd(shared_files)
     with open(file, 'rb') as f:
       ftp_server.storbinary(f"STOR {filename}", f)
     ftp_server.quit()
 
+    songCount +=1
+    listBox.insert(songCount, filename)
+    dwnldBtn.config(bg="royalblue", fg="white", state=NORMAL)
+
   except FileNotFoundError:
     print("No file selected")
+
+def downloadFile():
+  song = listBox.get(ANCHOR)
+  filename = filedialog.asksaveasfilename(initialfile=song, filetypes=[(f"{song.split('.')[1].upper()}", f"*.{song.split('.')[1]}")])
+  if filename:
+    print(filename)
+    pauseSong()
+    infoLabel.config(text=f"Downloading {song}, please wait")
+
+    ftp_server = FTP("127.0.0.1", "ftp_username", "ftp_pass")
+    ftp_server.encoding = "utf-8"
+    ftp_server.cwd(shared_files)
+
+    file = open(filename, "wb")
+    ftp_server.retrbinary(f"RETR {song}", file.write)
+    file.close()
+    ftp_server.quit()
+
+    infoLabel.config(text="Download complete")
+
+  else:
+    print("No download path selected")
 
 def openWindow():
   global window, listBox, infoLabel, nameEntry
@@ -114,6 +133,7 @@ def openWindow():
   window.geometry("350x350")
   window.config(bg="#96c8ff")
   window.resizable(width=False, height=False)
+  window.protocol("WM_DELETE_WINDOW", exitApp)
 
   Label(window, text="Enter your name:", bg="#96c8ff", font="Consolas 11").place(x=15, y=10)
   nameEntry = Entry(window, width=35, font="Consolas 10")
@@ -126,21 +146,20 @@ def openWindow():
   listBox.place(x=175, y=165, anchor=CENTER)
 
   playBtn = Button(window, text="Play", bg="white", disabledforeground="royalblue", font="Consolas 11 bold", command=playSong, state=DISABLED)
-  playBtn.place(x=20, y=285, anchor=W)
+  playBtn.place(x=25, y=285, anchor=W)
   pauseBtn = Button(window, text="Pause", bg="white", disabledforeground="royalblue", font="Consolas 11 bold", command=pauseSong, state=DISABLED)
-  pauseBtn.place(x=70, y=285, anchor=W)  
+  pauseBtn.place(x=75, y=285, anchor=W)
   stopBtn = Button(window, text="Stop", bg="white", disabledforeground="royalblue", font="Consolas 11 bold", command=stopSong, state=DISABLED)
-  stopBtn.place(x=20, y=325, anchor=W)
+  stopBtn.place(x=25, y=325, anchor=W)
 
-  uploadBtn = Button(window, text="Upload", bg="white", disabledforeground="royalblue", font="Consolas 11 bold", command=browseFiles, state=DISABLED)
-  uploadBtn.place(x=320, y=285, anchor=E)
-  dwnldBtn = Button(window, text="Download", bg="white", disabledforeground="royalblue", font="Consolas 11 bold", state=DISABLED)
-  dwnldBtn.place(x=320, y=325, anchor=E)
+  uploadBtn = Button(window, text="Upload", bg="white", disabledforeground="royalblue", font="Consolas 11 bold", command=uploadFile, state=DISABLED)
+  uploadBtn.place(x=325, y=285, anchor=E)
+  dwnldBtn = Button(window, text="Download", bg="white", disabledforeground="royalblue", font="Consolas 11 bold", command=downloadFile, state=DISABLED)
+  dwnldBtn.place(x=325, y=325, anchor=E)
 
   infoLabel = Label(window, text="", bg="#96c8ff", font="Consolas 11")
   infoLabel.place(x=25, y=236)
 
-  getSongs()
   window.mainloop()
 
 openWindow()
